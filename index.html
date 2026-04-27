@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Actual Time · Live Clock</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0b2b3f 0%, #1a4c6e 100%);
+            font-family: 'Segoe UI', 'Roboto', 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            margin: 0;
+        }
+
+        /* elegant glassmorphic card */
+        .time-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            border-radius: 3rem;
+            padding: 2.5rem 2rem;
+            width: 100%;
+            max-width: 680px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.15);
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        /* subtle hover effect */
+        .time-card:hover {
+            background: rgba(255, 255, 255, 0.18);
+            box-shadow: 0 30px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        /* greeting / label */
+        .greeting {
+            font-size: 1.3rem;
+            letter-spacing: 1px;
+            font-weight: 500;
+            color: #eef5ff;
+            text-transform: uppercase;
+            background: rgba(0, 0, 0, 0.2);
+            display: inline-block;
+            padding: 0.35rem 1.2rem;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+            margin-bottom: 1.3rem;
+            word-break: keep-all;
+        }
+
+        /* main time display */
+        .clock-face {
+            font-family: 'JetBrains Mono', 'Fira Mono', 'Courier New', monospace;
+            font-weight: 600;
+            font-size: clamp(3.2rem, 14vw, 5.8rem);
+            background: linear-gradient(135deg, #ffffff 20%, #f0f9ff 80%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            letter-spacing: 0.04em;
+            margin: 0.35rem 0 0.2rem 0;
+            line-height: 1.2;
+        }
+
+        /* seconds and am/pm styling */
+        .time-sub {
+            font-size: clamp(1rem, 5vw, 1.7rem);
+            font-weight: 500;
+            color: #d9eaff;
+            background: rgba(0, 0, 0, 0.25);
+            display: inline-block;
+            padding: 0.2rem 1rem;
+            border-radius: 60px;
+            margin-top: 0.5rem;
+            backdrop-filter: blur(4px);
+            font-family: monospace;
+        }
+
+        /* date section */
+        .date-panel {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.25);
+            font-size: 1.35rem;
+            font-weight: 500;
+            color: #fbe9d2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .date-badge {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .date-badge i {
+            font-style: normal;
+            font-weight: normal;
+            opacity: 0.8;
+        }
+
+        /* small timezone hint */
+        .timezone-hint {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: #cbdbe6;
+            background: rgba(0, 0, 0, 0.2);
+            display: inline-block;
+            padding: 0.25rem 0.9rem;
+            border-radius: 30px;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        @media (max-width: 500px) {
+            .time-card {
+                padding: 1.8rem 1.2rem;
+            }
+            .greeting {
+                font-size: 1rem;
+            }
+            .date-panel {
+                font-size: 1rem;
+                gap: 0.4rem;
+            }
+            .timezone-hint {
+                font-size: 0.7rem;
+            }
+        }
+
+        /* ticking second pulse animation (soft) */
+        @keyframes subtlePulse {
+            0% { opacity: 0.95; text-shadow: 0 0 0px rgba(255,255,200,0.1);}
+            100% { opacity: 1; text-shadow: 0 0 2px rgba(255,245,180,0.6);}
+        }
+        .clock-face {
+            animation: subtlePulse 0.6s ease-in-out;
+            animation-iteration-count: 1;
+        }
+        /* we'll trigger class with js for extra glow on each tick */
+        .time-tick {
+            animation: subtlePulse 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+<div class="time-card">
+    <div class="greeting" id="greetingMsg">CURRENT LOCAL TIME</div>
+    
+    <!-- main time (HH:MM:SS with AM/PM style) -->
+    <div class="clock-face" id="clockDisplay">--:--:--</div>
+    <div class="time-sub" id="ampmSeconds">loading...</div>
+    
+    <div class="date-panel" id="datePanel">
+        <span class="date-badge">📅 <span id="fullDate">--</span></span>
+        <span class="date-badge">🗓️ <span id="weekDay">---</span></span>
+    </div>
+    
+    <div class="timezone-hint" id="tzInfo">
+        🌍 your system time · live sync
+    </div>
+</div>
+
+<script>
+    (function() {
+        // DOM elements
+        const clockDisplayEl = document.getElementById('clockDisplay');
+        const ampmSecondsEl = document.getElementById('ampmSeconds');
+        const fullDateEl = document.getElementById('fullDate');
+        const weekDayEl = document.getElementById('weekDay');
+        const greetingMsgEl = document.getElementById('greetingMsg');
+        
+        // Helper: pad numbers to 2 digits
+        const pad = (num) => String(num).padStart(2, '0');
+        
+        // Helper: get greeting based on hour (optional dynamic)
+        const updateGreeting = (hour24) => {
+            if (hour24 >= 5 && hour24 < 12) {
+                greetingMsgEl.textContent = "🌅 GOOD MORNING · CURRENT TIME";
+            } else if (hour24 >= 12 && hour24 < 17) {
+                greetingMsgEl.textContent = "☀️ GOOD AFTERNOON · EXACT TIME";
+            } else if (hour24 >= 17 && hour24 < 21) {
+                greetingMsgEl.textContent = "🌙 GOOD EVENING · LIVE CLOCK";
+            } else {
+                greetingMsgEl.textContent = "✨ NIGHT OWL · ACTUAL TIME";
+            }
+        };
+        
+        // Format date nicely: "April 27, 2026" style, plus weekday
+        const updateDateInfo = (dateObj) => {
+            // get weekday name (long)
+            const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            const year = dateObj.getFullYear();
+            const month = months[dateObj.getMonth()];
+            const day = dateObj.getDate();
+            const weekdayName = weekdays[dateObj.getDay()];
+            
+            // Format: "April 27, 2026"
+            fullDateEl.textContent = `${month} ${day}, ${year}`;
+            weekDayEl.textContent = weekdayName;
+        };
+        
+        // animate the clock text on each tick (small subtle effect)
+        let tickAnimTimer = null;
+        const triggerTickEffect = () => {
+            if (clockDisplayEl) {
+                clockDisplayEl.classList.remove('time-tick');
+                // force reflow to restart animation
+                void clockDisplayEl.offsetWidth;
+                clockDisplayEl.classList.add('time-tick');
+                // remove class after animation ends to avoid accumulation
+                setTimeout(() => {
+                    if (clockDisplayEl) clockDisplayEl.classList.remove('time-tick');
+                }, 350);
+            }
+        };
+        
+        // core function: get current time and refresh all displays
+        const refreshClock = () => {
+            const now = new Date();
+            
+            // ---- TIME SECTION (12-hour format with AM/PM) ----
+            let hours24 = now.getHours();
+            let hours12 = hours24 % 12;
+            if (hours12 === 0) hours12 = 12;   // 12 AM/PM handling
+            
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            
+            const ampm = hours24 >= 12 ? 'PM' : 'AM';
+            
+            // format main time (HH:MM:SS with leading zeros)
+            const formattedTime = `${pad(hours12)}:${pad(minutes)}:${pad(seconds)}`;
+            // secondary line: shows AM/PM + optional seconds context
+            const ampmSecText = `${ampm}  ·  seconds:${pad(seconds)}`;
+            
+            // update DOM elements
+            clockDisplayEl.textContent = formattedTime;
+            ampmSecondsEl.textContent = ampmSecText;
+            
+            // ---- DATE SECTION ----
+            updateDateInfo(now);
+            
+            // ---- dynamic greeting based on 24h ----
+            updateGreeting(hours24);
+            
+            // Optional: tiny extra info about time zone offset? Not necessary but adds clarity
+            const offset = -now.getTimezoneOffset();
+            const sign = offset >= 0 ? '+' : '-';
+            const absOffset = Math.abs(offset);
+            const offsetHours = Math.floor(absOffset / 60);
+            const offsetMins = absOffset % 60;
+            const tzOffsetStr = `UTC${sign}${pad(offsetHours)}:${pad(offsetMins)}`;
+            const tzInfoDiv = document.getElementById('tzInfo');
+            if (tzInfoDiv) {
+                // don't overload, just show friendly text with offset
+                tzInfoDiv.innerHTML = `🕒 your local time · ${tzOffsetStr} · live every second`;
+            }
+            
+            // add soft ticking animation
+            triggerTickEffect();
+        };
+        
+        // make sure everything updates smoothly
+        let intervalId = null;
+        
+        // initial call to avoid any delay
+        refreshClock();
+        
+        // set interval every 1000 ms (1 second)
+        intervalId = setInterval(refreshClock, 1000);
+        
+        // optional: cleanup on page unload (good practice)
+        window.addEventListener('beforeunload', () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        });
+        
+        // also handle visibility change: no need to double interval, but keep sync if browser throttles?
+        // extra safety: if focus returns and time drifts more than 500ms, refreshClock will correct anyway.
+        // optional re-sync on visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                // force a fresh update immediately when tab becomes visible
+                refreshClock();
+            }
+        });
+        
+        // tiny fix for edge: ensure seconds display is consistent with main display
+        // all good!
+    })();
+</script>
+</body>
+</html>
