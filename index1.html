@@ -1,0 +1,587 @@
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>D2D Interaction Tool (Generate Note + Log + Export CSV)</title>
+<style>
+    :root{
+      --bg:#0b1220;
+      --panel:#121a2b;
+      --muted:#9fb0d0;
+      --text:#eaf0ff;
+      --accent:#4f7cff;
+      --ok:#29c17e;
+      --warn:#ffcc66;
+      --bad:#ff5b5b;
+      --border:#24314f;
+      --input:#0f1729;
+      --req:#ff5b5b;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:linear-gradient(180deg, var(--bg), #070b14);
+      color:var(--text);
+      padding:18px;
+    }
+    .wrap{max-width:1100px;margin:0 auto}
+    header{
+      display:flex; gap:12px; align-items:flex-start; justify-content:space-between;
+      margin-bottom:14px;
+    }
+    h1{font-size:18px;margin:0}
+    .sub{color:var(--muted);font-size:13px;line-height:1.35;margin-top:6px}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+    }
+    @media (max-width: 920px){
+      .grid{grid-template-columns: 1fr}
+    }
+    .card{
+      background:rgba(18,26,43,0.92);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px;
+      box-shadow:0 12px 40px rgba(0,0,0,0.25);
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 220px 1fr;
+      gap:10px;
+      align-items:center;
+      margin-bottom:10px;
+    }
+    .row label{color:var(--muted);font-size:13px}
+    .reqMark{color:var(--req); font-weight:800; margin-left:6px;}
+    input, textarea, select{
+      width:100%;
+      background:var(--input);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:10px 10px;
+      outline:none;
+      font-size:13px;
+    }
+    textarea{min-height:68px;resize:vertical}
+    .repgrid{
+      display:grid;
+      grid-template-columns: 1fr 34px 1fr;
+      gap:8px;
+      align-items:center;
+    }
+    .dash{
+      text-align:center;color:var(--muted);font-weight:700;
+      border:1px solid var(--border); border-radius:10px;
+      padding:8px 0;background:#0c1324;
+    }
+    .btns{
+      display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;
+    }
+    button{
+      border:1px solid var(--border);
+      background: #0f1830;
+      color: var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
+    }
+    button.primary{background: linear-gradient(180deg, var(--accent), #3b61d9); border-color:#2b45a6;}
+    button.ok{background: linear-gradient(180deg, var(--ok), #1f9c65); border-color:#127a4c;}
+    button.warn{background: linear-gradient(180deg, var(--warn), #e0a940); color:#1a1a1a; border-color:#c28922;}
+    button.bad{background: linear-gradient(180deg, var(--bad), #d94848); border-color:#a93636;}
+    button:active{transform:translateY(1px)}
+    .noteBox{
+      width:100%;
+      min-height:240px;
+      background:#0b1326;
+      border:1px dashed #33508f;
+      border-radius:14px;
+      padding:12px;
+      white-space:pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size:12.5px;
+      line-height:1.35;
+      color:#eaf0ff;
+    }
+    .status{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#0c1428;
+      color:var(--muted);
+      font-size:13px;
+      white-space:pre-wrap;
+    }
+    .status.ok{border-color:#1f7a52; color:#c8ffe6}
+    .status.bad{border-color:#7a2a2a; color:#ffd2d2}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+      font-size:12.5px;
+    }
+    th, td{
+      border-bottom:1px solid var(--border);
+      padding:8px 8px;
+      text-align:left;
+      vertical-align:top;
+      color:var(--text);
+    }
+    th{color:var(--muted);font-weight:700}
+    td.small{color:var(--muted);white-space:nowrap}
+    .footer{
+      margin-top:14px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+ 
+    /* Mandatory field highlighting */
+    .invalid{
+      border-color: var(--bad) !important;
+      box-shadow: 0 0 0 2px rgba(255,91,91,0.18);
+    }
+    .hint{color:#b9c9ff}
+</style>
+</head>
+ 
+<body>
+<div class="wrap">
+<header>
+<div>
+<h1>D2D Interaction Tool</h1>
+<div class="sub">
+        Mandatory fields are: Rep ID Part 1, Rep ID Part 2, Service address (<span class="reqMark">*</span>).<br>
+        Install Date auto-fills to tomorrow, cannot be today, and displays as <span class="hint">DD/MM/YYYY</span>.
+</div>
+</div>
+<div class="sub" id="clock"></div>
+</header>
+ 
+  <div class="grid">
+ 
+    <!-- INPUTS -->
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px 0;color:#dbe6ff;">Inputs</h2>
+ 
+      <div class="row">
+<label>Rep ID (Part 1 / Part 2)<span class="reqMark">*</span></label>
+<div class="repgrid">
+<input id="rep1" placeholder="87XXXX" />
+<div class="dash">-</div>
+<input id="rep2" placeholder="EQXXXXX" />
+</div>
+</div>
+ 
+      <div class="row">
+<label>Service address<span class="reqMark">*</span></label>
+<textarea id="address" placeholder="Customer address here..."></textarea>
+</div>
+ 
+      <div class="row">
+<label>Promo &amp; LTO code</label>
+<input id="promo" placeholder="BPO689 - Fibe 50 : $50 Uno/24M" />
+</div>
+ 
+      <div class="row">
+<label>Winback/Standalone</label>
+<select id="winback">
+<option value="">Select…</option>
+<option>Yes</option>
+<option>No</option>
+</select>
+</div>
+ 
+      <div class="row">
+<label>Winback number / account number</label>
+<input id="winbackNum" placeholder="Account/Phone Number" />
+</div>
+ 
+      <div class="row">
+<label>Winback Competitor Account Name</label>
+<input id="competitor" placeholder="Customer name on invoice" />
+</div>
+ 
+      <div class="row">
+<label>Extras / Sweeteners</label>
+<textarea id="extras" placeholder="$10/24m Cross Sale, $150 Prepaid, Waive Install..."></textarea>
+</div>
+ 
+      <div class="row">
+<label>Install Date (DD/MM/YYYY)</label>
+<input id="installDate" type="date" />
+</div>
+ 
+      <div class="row">
+<label>Mobility Offer / Sweeteners</label>
+<input id="mobilityOffer" placeholder="Cellular plan here" />
+</div>
+ 
+      <div class="row">
+<label>Mobility Order#</label>
+<input id="mobilityOrder" placeholder="OrderMax Order#" />
+</div>
+ 
+      <div class="row">
+<label>Additional Comment</label>
+<textarea id="comment" placeholder="Any extra notes..."></textarea>
+</div>
+ 
+      <div class="btns">
+<button class="primary" id="btnGenerate">Generate Note</button>
+<button class="ok" id="btnCopy">Copy Note</button>
+<button class="ok" id="btnAddLog">Add to Log</button>
+<button class="warn" id="btnExport">Export CSV</button>
+<button class="bad" id="btnClear">Clear Form</button>
+</div>
+ 
+      <div class="status" id="status">Status: Ready.</div>
+</section>
+ 
+    <!-- NOTE + LOG -->
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px 0;color:#dbe6ff;">Generated Note</h2>
+<div class="noteBox" id="noteBox">Your note will appear here…</div>
+ 
+      <h2 style="font-size:15px;margin:14px 0 6px 0;color:#dbe6ff;">Interaction Log</h2>
+<div class="sub">Saved locally in your browser (localStorage). Export CSV anytime.</div>
+ 
+      <table>
+<thead>
+<tr>
+<th style="width:165px;">Date</th>
+<th style="width:140px;">Rep ID</th>
+<th>Service Address</th>
+<th style="width:160px;">Promo</th>
+</tr>
+</thead>
+<tbody id="logBody"></tbody>
+</table>
+ 
+      <div class="footer">
+        Tip: Export CSV then open the file in Excel Online and copy/paste into your master workbook.
+</div>
+</section>
+ 
+  </div>
+</div>
+ 
+<script>
+  // ---------- Helpers ----------
+  const $ = (id) => document.getElementById(id);
+ 
+  function pad2(n){ return String(n).padStart(2, "0"); }
+ 
+  function todayYMD() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+ 
+  function tomorrowYMD() {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+ 
+  function ymdToDMY(ymd) {
+    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return "";
+    const [y,m,d] = ymd.split("-");
+    return `${d}/${m}/${y}`;
+  }
+ 
+  function nowLocalISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+ 
+  function setStatus(msg, type="") {
+    const el = $("status");
+    el.className = "status" + (type ? " " + type : "");
+    el.textContent = "Status: " + msg;
+  }
+ 
+  function escapeCSV(value) {
+    const s = String(value ?? "");
+    if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
+    return s;
+  }
+ 
+  // Mandatory only: Rep ID part 1/2 + Service address
+  function clearInvalidStyles() {
+    ["rep1","rep2","address"].forEach(id => $(id).classList.remove("invalid"));
+  }
+  function markInvalid(id) { $(id).classList.add("invalid"); }
+ 
+  function validateMandatoryBasic() {
+    clearInvalidStyles();
+    const rep1 = $("rep1").value.trim();
+    const rep2 = $("rep2").value.trim();
+    const address = $("address").value.trim();
+ 
+    const missing = [];
+    if (!rep1) { missing.push("Rep ID Part 1"); markInvalid("rep1"); }
+    if (!rep2) { missing.push("Rep ID Part 2"); markInvalid("rep2"); }
+    if (!address) { missing.push("Service address"); markInvalid("address"); }
+ 
+    return missing;
+  }
+ 
+  function getFormData() {
+    const rep1 = $("rep1").value.trim();
+    const rep2 = $("rep2").value.trim();
+    const repID = `${rep1} - ${rep2}`.trim();
+ 
+    const installYMD = $("installDate").value.trim();        // YYYY-MM-DD
+    const installDMY = ymdToDMY(installYMD);                 // DD/MM/YYYY
+ 
+    return {
+      date: nowLocalISO(),
+      rep1, rep2, repID,
+      address: $("address").value.trim(),
+      promo: $("promo").value.trim(),
+      winback: $("winback").value.trim(),
+      winbackNum: $("winbackNum").value.trim(),
+      competitor: $("competitor").value.trim(),
+      extras: $("extras").value.trim(),
+      installDMY,
+      mobilityOffer: $("mobilityOffer").value.trim(),
+      mobilityOrder: $("mobilityOrder").value.trim(),
+      comment: $("comment").value.trim()
+    };
+  }
+  function na(value) {
+  const v = String(value ?? "").trim();
+  return v === "" ? "N/A" : v;
+}
+ 
+function buildNote(d) {
+  return [
+    `D2D Reps ID: ${na(d.repID)}`,
+    `Service address: ${na(d.address)}`,
+    `Promo & LTO code: ${na(d.promo)}`,
+    `Winback/Standalone: ${na(d.winback)}`,
+    `Winback number/account number: ${na(d.winbackNum)}`,
+    `Winback Competitor Account Name: ${na(d.competitor)}`,
+    `Extras/Sweeteners: ${na(d.extras)}`,
+    `Install Date: ${na(d.installDMY)}`,
+    `Mobility Offer/Sweeteners: ${na(d.mobilityOffer)}`,
+    `Mobility Order#: ${na(d.mobilityOrder)}`,
+    `Additional Comment: ${na(d.comment)}`
+  ].join("\n");
+}
+ 
+ 
+  // ---------- Log Storage ----------
+  const STORAGE_KEY = "d2d_interaction_log_v3";
+ 
+  function loadLog() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+ 
+  function saveLog(items) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+ 
+  function renderLog() {
+    const log = loadLog();
+    const body = $("logBody");
+    body.innerHTML = "";
+ 
+    if (!log.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 4;
+      td.className = "small";
+      td.textContent = "No interactions logged yet.";
+      tr.appendChild(td);
+      body.appendChild(tr);
+      return;
+    }
+ 
+    const shown = log.slice(-15).reverse();
+    for (const item of shown) {
+      const tr = document.createElement("tr");
+ 
+      const tdDate = document.createElement("td");
+      tdDate.className = "small";
+      tdDate.textContent = item.date;
+      tr.appendChild(tdDate);
+ 
+      const tdRep = document.createElement("td");
+      tdRep.className = "small";
+      tdRep.textContent = item.repID;
+      tr.appendChild(tdRep);
+ 
+      const tdAddr = document.createElement("td");
+      tdAddr.textContent = item.address;
+      tr.appendChild(tdAddr);
+ 
+      const tdPromo = document.createElement("td");
+      tdPromo.textContent = item.promo;
+      tr.appendChild(tdPromo);
+ 
+      body.appendChild(tr);
+    }
+  }
+ 
+  // ---------- Install Date Rules ----------
+  function enforceInstallDateRules() {
+    const input = $("installDate");
+    const min = tomorrowYMD();
+ 
+    // Always auto-populate (if empty or invalid), and never allow today
+    input.min = min;
+ 
+    if (!input.value || input.value <= todayYMD()) {
+      input.value = min;
+    }
+ 
+    input.addEventListener("change", () => {
+      const today = todayYMD();
+      if (!input.value || input.value === today) {
+        input.value = min;
+        setStatus("Install Date cannot be today. Reset to tomorrow.", "bad");
+      }
+    });
+  }
+ 
+  // ---------- Actions ----------
+  let lastNote = "";
+ 
+  $("btnGenerate").addEventListener("click", () => {
+    const missing = validateMandatoryBasic();
+    if (missing.length) {
+      setStatus("Please fill mandatory fields:\n- " + missing.join("\n- "), "bad");
+      return;
+    }
+    const d = getFormData();
+    lastNote = buildNote(d);
+    $("noteBox").textContent = lastNote;
+    setStatus("Note generated.", "ok");
+  });
+ 
+  $("btnCopy").addEventListener("click", async () => {
+    if (!lastNote) {
+      setStatus("Generate the note first.", "bad");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(lastNote);
+      setStatus("Note copied to clipboard.", "ok");
+    } catch {
+      setStatus("Clipboard blocked by browser. Select note and copy manually.", "bad");
+    }
+  });
+ 
+  $("btnAddLog").addEventListener("click", () => {
+    const missing = validateMandatoryBasic();
+    if (missing.length) {
+      setStatus("Please fill mandatory fields before saving:\n- " + missing.join("\n- "), "bad");
+      return;
+    }
+ 
+    const d = getFormData();
+    lastNote = buildNote(d);
+    $("noteBox").textContent = lastNote;
+ 
+    const log = loadLog();
+    log.push({ ...d, note: lastNote });
+    saveLog(log);
+    renderLog();
+    setStatus(`Saved to log (total: ${log.length}).`, "ok");
+  });
+ 
+  $("btnExport").addEventListener("click", () => {
+    const log = loadLog();
+    if (!log.length) {
+      setStatus("No log entries to export.", "bad");
+      return;
+    }
+ 
+    const header = [
+      "Date",
+      "Rep ID",
+      "Service Address",
+      "Promo & LTO",
+      "Winback",
+      "Winback Number",
+      "Competitor Account Name",
+      "Extras / Sweeteners",
+      "Install Date",
+      "Mobility Offer",
+      "Mobility Order#",
+      "Additional Comment",
+      "Generated Note"
+    ];
+ 
+    const rows = log.map(x => ([
+      x.date,
+      x.repID,
+      x.address,
+      x.promo,
+      x.winback,
+      x.winbackNum,
+      x.competitor,
+      x.extras,
+      x.installDMY,
+      x.mobilityOffer,
+      x.mobilityOrder,
+      x.comment,
+      x.note
+    ]));
+ 
+    const csv = [
+      header.map(escapeCSV).join(","),
+      ...rows.map(r => r.map(escapeCSV).join(","))
+    ].join("\n");
+ 
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+ 
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `D2D_Records_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+ 
+    setStatus(`Exported CSV (${log.length} rows).`, "ok");
+  });
+ 
+  $("btnClear").addEventListener("click", () => {
+    ["rep1","rep2","address","promo","winback","winbackNum","competitor","extras","mobilityOffer","mobilityOrder","comment"].forEach(id => {
+      const el = $(id);
+      if (el.tagName === "SELECT") el.value = "";
+      else el.value = "";
+    });
+ 
+    // Reset install date to tomorrow (auto-populated rule)
+    $("installDate").value = tomorrowYMD();
+ 
+    clearInvalidStyles();
+    lastNote = "";
+    $("noteBox").textContent = "Your note will appear here…";
+    setStatus("Form cleared.", "ok");
+  });
+ 
+  // Clock + init
+  function tick(){ $("clock").textContent = "Local time: " + nowLocalISO(); }
+  tick(); setInterval(tick, 1000);
+  renderLog();
+  enforceInstallDateRules();
+</script>
+</body>
+</html>
